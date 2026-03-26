@@ -1,0 +1,267 @@
+CS2516 - Algorithms and Data Structures II
+Assignment: Dijkstra's Algorithm for Shortest Paths
+Student number: 124381061
+Name: Alin Rimsha Mohammad Razul
+============================================================
+
+
+HOW TO RUN THE CODE
+-------------------
+Q1:        python3 test_dijkstra.py
+Q2-Q5:     python3 processgrid.py
+
+
+============================================================
+Q1 
+============================================================
+
+Dijkstra's algorithm was implemented in dijkstra.py using a custom
+AdaptablePriorityQueue (APQ) built on top of a binary min-heap (heap.py).
+
+The APQ supports three operations:
+  - add(key, value):      insert a vertex with a given priority
+  - remove_min():         extract the vertex with lowest cost
+  - update(value, key):   decrease the priority of an existing vertex
+
+The algorithm returns a dictionary mapping each vertex object to a
+(predecessor_vertex, cost) pair, as required.
+
+Results on simple graphs:
+
+  simplegraph1.txt (5 vertices, 7 edges)
+    Source: vertex 1
+    Shortest path to vertex 4:  cost = 8,  predecessor = vertex 3  correct
+    All shortest paths from vertex 1:
+      To 1: cost=0, predecessor=None
+      To 2: cost=3, predecessor=1
+      To 3: cost=7, predecessor=2
+      To 4: cost=8, predecessor=3
+      To 5: cost=5, predecessor=1
+
+  simplegraph2.txt (28 vertices, 40 edges)
+    Source: vertex 14
+    Shortest path to vertex 5:  cost = 16, predecessor = vertex 8  correct
+    All 28 vertices reachable from vertex 14.
+
+
+============================================================
+Q2 
+============================================================
+
+the grid is converted to a Graph instance using create_from_grid().
+Each free cell (r, c) becomes a vertex with label (r, c). edges of
+weight 1 are added between horizontally and vertically adjacent free
+cells. Blocked cells ('X') are skipped.
+
+Dijkstra is run from the start vertex to find the shortest path.
+the path is extracted by following predecessor pointers back from the
+finish vertex and reversing the result to get a start-to-finish list
+of coordinate pairs.
+
+an animation of the path is shown using visualize.py:
+    animation = Animation(grid, start, finish, path)
+    animation.show()
+
+Results on basic grids (all edge costs = 1, no vertex costs):
+
+  grid1basic.csv  (9x10,  51 vertices,  81 edges)
+    Graph creation:  0.000102s
+    Dijkstra:        0.000136s  |  APQ adds: 51  |  removals: 51
+    Path cost: 6  |  Path length: 7 steps
+
+  grid2basic.csv  (42x42, 1160 vertices, 1924 edges)
+    Graph creation:  0.002417s
+    Dijkstra:        0.002982s  |  APQ adds: 1160  |  removals: 1160
+    Path cost: 55  |  Path length: 56 steps
+
+  grid3basic.csv  (42x42, 1160 vertices, 1924 edges)
+    Graph creation:  0.002145s
+    Dijkstra:        0.002734s  |  APQ adds: 1160  |  removals: 1160
+    Path cost: 114  |  Path length: 115 steps
+
+Dijkstra explores every reachable vertex before finishing because it
+has no information about where the finish is. on grid2 and grid3,
+all 1160 reachable vertices are added to and removed from the APQ.
+
+
+============================================================
+Q3 
+============================================================
+
+A* extends Dijkstra by using a heuristic estimate of the remaining
+distance to the finish. each entry in the APQ has a tuple key:
+
+    (total_cost, incurred_cost)
+    where total_cost = incurred_cost + heuristic(vertex)
+
+this ensures the vertex with the lowest total estimated cost is always
+expanded first. ties are broken by preferring the vertex with the
+smallest incurred cost. The heuristic used is manhattan distance:
+
+    h(v) = |v.row - finish.row| + |v.col - finish.col|
+
+this never over-estimates the true remaining cost (admissible), so A*
+is guaranteed to find the optimal path. A* terminates as soon as the
+finish vertex is removed from the APQ.
+
+Results (basic grids):
+
+============================================================
+File: grid1basic.csv  |  APQ: AdaptablePriorityQueue
+============================================================
+Graph created in 0.000153s  (51 vertices, 81 edges)
+
+Dijkstra  0.000220s | APQ adds: 51 | removals: 51 | path cost: 6 | path len: 7
+A*        0.000093s | APQ adds: 27 | removals: 16 | path cost: 6 | path len: 7
+  Both algorithms agree on cost: 6
+rows:  42 ; columns:  42
+
+============================================================
+File: grid2basic.csv  |  APQ: AdaptablePriorityQueue
+============================================================
+Graph created in 0.003128s  (1160 vertices, 1924 edges)
+
+Dijkstra  0.005044s | APQ adds: 1160 | removals: 1160 | path cost: 55 | path len: 56
+A*        0.002898s | APQ adds: 387 | removals: 364 | path cost: 55 | path len: 56
+  Both algorithms agree on cost: 55
+rows:  42 ; columns:  42
+
+============================================================
+File: grid3basic.csv  |  APQ: AdaptablePriorityQueue
+============================================================
+Graph created in 0.003752s  (1160 vertices, 1924 edges)
+
+Dijkstra  0.004746s | APQ adds: 1160 | removals: 1160 | path cost: 114 | path len: 115
+A*        0.007082s | APQ adds: 1133 | removals: 1120 | path cost: 114 | path len: 115
+  Both algorithms agree on cost: 114
+
+Discussion:
+  on grid1 and grid2, A* dramatically reduces the search space because
+  the shortest path is relatively direct and the manhattan distance
+  heuristic steers the search toward the finish. on grid3 the path is
+  very long and winding (cost=114 across a 42x42 grid), which forces
+  A* to explore almost the entire grid before finding the finish. in
+  this case A* provides little advantage over Dijkstra.
+
+
+============================================================
+Q4 
+============================================================
+
+each vertex now has an integer cost read from the grid file. cells
+marked 'S' or 'F' are given cost 0; all other free cells use the
+integer value in the CSV. the Vertex class was extended with a cost
+field, and add_vertex() was updated to accept a cost parameter.
+
+when extending a path from vertex x to vertex y the total cost is:
+    new_cost = cost(x) + edge_weight(x,y) + cost(y)
+
+this means the total path cost = number of moves + sum of vertex
+costs for every cell visited (excluding the source, which is 'S'
+with cost 0).
+
+Results on cost grids:
+------------------------------------------------------------
+  grid1costs.csv  (9x10, 51 vertices)
+    Dijkstra:  cost=23,   path length=13,  APQ adds=51,  rems=51
+    A*:        cost=23,   path length=13,  APQ adds=50,  rems=45
+    Both agree on cost=23.
+------------------------------------------------------------
+  grid2costs.csv  (42x42, 1160 vertices)
+    Dijkstra:  cost=451,  path length=53,  APQ adds=1160, rems=1160
+    A*:        cost=451,  path length=53,  APQ adds=357,  rems=335
+    Both agree on cost=451.
+------------------------------------------------------------
+  grid3costs.csv  (42x42, 1160 vertices)
+    Dijkstra:  cost=1433, path length=123, APQ adds=1160, rems=1160
+    A*:        cost=1433, path length=123, APQ adds=1117, rems=1107
+    Both agree on cost=1433.
+------------------------------------------------------------
+
+Note: with vertex costs the optimal path is not necessarily the
+shortest in number of steps. for example on grid2costs the cheapest
+path is 53 steps (cost=451), whereas without vertex costs the
+shortest path was 56 steps (cost=55). the algorithm correctly finds
+a longer route that avoids high-cost cells.
+
+
+============================================================
+Q5 - Challenge: Evaluation and Variations
+============================================================
+
+--- Search Space Comparison ---
+
+Dijkstra always adds every reachable vertex to the APQ (adds = total
+reachable vertices on all tested grids). A* adds far fewer vertices
+on grids where the path is relatively direct, because it focuses the
+search toward the finish. on winding paths (grid3) the benefit is
+minimal since A* must explore most of the grid to route around walls.
+
+--- Runtime Comparison: Dijkstra vs A* ---
+
+  grid1basic:  Dijkstra 0.000136s vs A* 0.000061s  (A* 2x faster)
+  grid1costs:  Dijkstra 0.000128s vs A* 0.000089s  (A* faster)
+  grid2basic:  Dijkstra 0.002982s vs A* 0.001017s  (A* 3x faster)
+  grid2costs:  Dijkstra 0.002922s vs A* 0.000944s  (A* 3x faster)
+  grid3basic:  Dijkstra 0.002734s vs A* 0.003142s  (A* slightly slower)
+  grid3costs:  Dijkstra 0.003126s vs A* 0.002970s  (roughly equal)
+
+A* is faster when it significantly reduces the search space. when it
+explores nearly the same number of vertices as Dijkstra (grid3), the
+extra overhead of computing the heuristic and managing tuple keys
+makes it marginally slower.
+
+--- Alternative Priority Queue: UnsortedListAPQ ---
+
+a second APQ implementation was created using an unsorted list:
+  - add():        O(1) - append to list
+  - remove_min(): O(n) - linear scan to find minimum
+  - update():     O(1) - direct entry update via dictionary lookup
+
+Comparison (heap-based APQ vs unsorted list APQ):
+
+  grid1basic.csv
+    Dijkstra  HeapAPQ: 0.000136s  |  ListAPQ: 0.000077s
+    A*        HeapAPQ: 0.000061s  |  ListAPQ: 0.000070s
+
+  grid1costs.csv
+    Dijkstra  HeapAPQ: 0.000128s  |  ListAPQ: 0.000081s
+    A*        HeapAPQ: 0.000089s  |  ListAPQ: 0.000074s
+
+  grid2basic.csv
+    Dijkstra  HeapAPQ: 0.002982s  |  ListAPQ: 0.002096s
+    A*        HeapAPQ: 0.001017s  |  ListAPQ: 0.000729s
+
+  grid3basic.csv
+    Dijkstra  HeapAPQ: 0.002734s  |  ListAPQ: 0.001879s
+    A*        HeapAPQ: 0.003142s  |  ListAPQ: 0.002488s
+
+  grid2costs.csv
+    Dijkstra  HeapAPQ: 0.002922s  |  ListAPQ: 0.002008s
+    A*        HeapAPQ: 0.000944s  |  ListAPQ: 0.000638s
+
+  grid3costs.csv
+    Dijkstra  HeapAPQ: 0.003126s  |  ListAPQ: 0.002051s
+    A*        HeapAPQ: 0.002970s  |  ListAPQ: 0.002276s
+
+the unsorted list APQ is consistently faster than the heap APQ on
+all tested grids. this is a surprising result given that the heap
+has O(log n) remove_min vs O(n) for the list. the reason is:
+
+  1. graph size: the largest grids have only 1160 vertices. at this
+     scale n is small, so O(n) and O(log n) differ by a constant
+     factor only (log2(1160) is around 10). the list's lower overhead wins.
+
+  2. python overhead: the heap APQ uses lazy deletion, which requires
+     an entry map, a counter, and validity checks on every pop. these
+     bookkeeping costs add up. the list APQ has much simpler logic
+     with fewer object allocations and dictionary lookups.
+
+  3. cache behaviour: a contiguous list has better cache locality
+     than a heap with scattered entry objects.
+
+for very large graphs (tens of thousands of vertices or more) the
+heap APQ would eventually become faster as the O(n) penalty for the
+list grows. for the grid sizes tested here, the simpler list wins.
+
+============================================================
